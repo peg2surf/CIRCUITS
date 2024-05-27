@@ -15,7 +15,7 @@ pygame.init()
 
 WIDTH, HEIGHT = 800, 600
 CELL_SIZE = 50
-screen = pygame.display.set_mode((WIDTH + 100, HEIGHT + 100))
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Wire Maker")
 
 WHITE = (255, 255, 255)
