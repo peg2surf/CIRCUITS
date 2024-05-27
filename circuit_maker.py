@@ -8,24 +8,19 @@ from statistics import mean
 from circuit_sim import simulate
 from magic_circles import circle_hash, CIRCLE_HASH_TO_NAME
 
-# Initialize Pygame
 pygame.init()
 
-# Set up the screen
 WIDTH, HEIGHT = 800, 600
 CELL_SIZE = 50
 screen = pygame.display.set_mode((WIDTH + 100, HEIGHT + 100))
 pygame.display.set_caption("Wire Maker")
 
-# Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 GRAY = (200, 200, 200)
-
-# Set up variables
 
 x_offset = 40
 y_offset = 20
@@ -91,8 +86,6 @@ def find_loops(coordinates):
                 loops.append(loop)
     return loops
 
-
-
 def run():
     global sources
     global shape
@@ -149,15 +142,17 @@ def pos_adj(pos: tuple):
 def is_point_on_line(x, y, x1, y1, x2, y2):
     return min(x1, x2) <= x <= max(x1, x2) and min(y1, y2) <= y <= max(y1, y2)
 
-
-def draw_arrowhead(start, end, size: int = 1, color: tuple = BLACK):
+#, size=CELL_SIZE/50, color = color
+def render_arrowhead(x, y, z, a, size: int = 1, color: tuple = BLACK):
+    if (x+line_thick < 0 and z+line_thick < 0) or (x-line_thick > WIDTH and z-line_thick > WIDTH): return
+    if (y < 0 and a < 0) or (y > HEIGHT and a > HEIGHT): return
     # Calculate midpoint
-    mid_x = (start[0] + end[0]) // 2
-    mid_y = (start[1] + end[1]) // 2
+    mid_x = (x + z) // 2
+    mid_y = (y + a) // 2
     
     # Calculate angle between start and end points
-    dx = end[0] - start[0]
-    dy = end[1] - start[1]
+    dx = z - x
+    dy = a - y
     angle = math.atan2(dy, dx)
     
     # Set arrowhead size
@@ -197,14 +192,12 @@ def wire_passive():
     if t is not None:
         x, y = t
         pos = pygame.mouse.get_pos()
-        pos = (
-            round((pos[0]-x_offset)/CELL_SIZE)*CELL_SIZE + x_offset, 
-            round((pos[1]-y_offset)/CELL_SIZE)*CELL_SIZE + y_offset,
-        )
+        pos_x = round((pos[0]-x_offset)/CELL_SIZE)*CELL_SIZE + x_offset
+        pos_y = round((pos[1]-y_offset)/CELL_SIZE)*CELL_SIZE + y_offset
         x = x*CELL_SIZE + x_offset
         y = y*CELL_SIZE + y_offset
-        pygame.draw.line(screen, BLACK, (x, y), pos, 2)
-        draw_arrowhead((x, y), pos)
+        pygame.draw.line(screen, BLACK, (x, y), (pos_x, pos_y), 2)
+        render_arrowhead(x, y, pos_x, pos_y)
 
 def wire_delete():
     global wires
@@ -216,8 +209,6 @@ def wire_delete():
         if is_point_on_line(x, y, *wire):
             wires.pop(i)
             wires_colors.pop(i)
-
-
 
 def sources_draw():
     global sources
@@ -381,6 +372,26 @@ right_button_offset_y = 0
 right_button_pos = None
 right_button_pressed = False
 
+def cross_product(p1, p2, p3):
+        return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
+
+def is_convex(points):
+    n = len(points)
+    if n < 3:
+        return False
+
+    sign = None
+    for i in range(n):
+        p1 = points[i]
+        p2 = points[(i + 1) % n]
+        p3 = points[(i + 2) % n]
+        cross = cross_product(p1, p2, p3)
+        if sign is None or cross * sign >= 0:
+            sign = cross
+        else:
+            return False
+    return True
+
 def circle_hash_api(L, conections):
     def has_repeating_number(list_of_tuples):
         seen_numbers = set()
@@ -440,6 +451,11 @@ def render_line(screen, color, x, y, z, a, line_thick):
 def render_circle(screen, color, x, y, dot_r):
     if x+dot_r < 0 or x-dot_r > WIDTH or y+dot_r < 0 or y-dot_r > HEIGHT: return
     pygame.draw.circle(screen, color, (x, y), dot_r)
+
+def render_polygon(screen, color, shape_index, points):
+    if all(x < 0 or x > WIDTH or y < 0 or y > HEIGHT for x, y in points): return
+    rects.add(shape_index)
+    pygame.draw.polygon(screen, color, points)
 
 
 help = False
@@ -532,26 +548,6 @@ while True:
             y_offset = mouse_y - right_button_pos[1] + right_button_offset_y
 
 
-    def cross_product(p1, p2, p3):
-        return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
-
-    def is_convex(points):
-        n = len(points)
-        if n < 3:
-            return False
-
-        sign = None
-        for i in range(n):
-            p1 = points[i]
-            p2 = points[(i + 1) % n]
-            p3 = points[(i + 2) % n]
-            cross = cross_product(p1, p2, p3)
-            if sign is None or cross * sign >= 0:
-                sign = cross
-            else:
-                return False
-        return True
-
     for loop in find_loops(wires):
         if len(loop) > 9 or not is_convex(loop): continue
         for (x1, y1), (x2, y2) in zip(loop, loop[1:]):
@@ -582,7 +578,7 @@ while True:
         y = y*CELL_SIZE + y_offset
         a = a*CELL_SIZE + y_offset
         render_line(screen, color, x, y, z, a, line_thick) 
-        draw_arrowhead((x, y), (z, a), size=CELL_SIZE/50, color = color)
+        render_arrowhead(x, y, z, a, size=CELL_SIZE/50, color = color)
     for x, y in sources:
         x = x*CELL_SIZE + x_offset
         y = y*CELL_SIZE + y_offset
@@ -607,9 +603,7 @@ while True:
             midpoint.append(((x+z)//2, (y+a)//2))
             render_circles.append((x, y))
             render_lines.append(((x, y), (z, a)))
-        midpoint = midpoint + midpoint[0:1]
-        midpoint2 = list(midpoints(midpoint))
-        midpoint2 = midpoint2 + midpoint2[0:1]
+        midpoint2 = list(midpoints(midpoint + midpoint[0:1]))
         for k, j in shapes_connections[i]:
             if 2*L > k >= L:
                 cord1 = midpoint[k%L]
@@ -620,18 +614,13 @@ while True:
             else:
                 cord1 = points[k]
                 cord2 = points[j]
-            x, y = cord1
-            z, a = cord2
-            if (x+line_thick < 0 and z+line_thick < 0) or (x-line_thick > WIDTH and z-line_thick > WIDTH): continue 
-            if (y < 0 and a < 0) or (y > HEIGHT and a > HEIGHT): continue
             render_lines.append((cord1, cord2))
-        if intersect_shape != i and not all(x < 0 or x > WIDTH or y < 0 or y > HEIGHT for x, y in points):
-            rects.add(i)
-            pygame.draw.polygon(screen, WHITE, points)
-        for cord1, cord2 in render_lines:
-            render_line(screen, color, *cord1, *cord2, line_thick)
-        for r in render_circles:
-            render_circle(screen, color, *r, dot_r)
+        if intersect_shape != i:
+            render_polygon(screen, WHITE, i, points)
+        for (x, y), (z, a) in render_lines:
+            render_line(screen, color, x, y, z, a, line_thick)
+        for (x, y) in render_circles:
+            render_circle(screen, color, x, y, dot_r)
         
         render_text(CIRCLE_HASH_TO_NAME.get(circle_hash_api(L, shapes_connections[i])), BLACK, avg(shape[:-1]), True)
     

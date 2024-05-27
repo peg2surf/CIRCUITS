@@ -181,26 +181,3 @@ if __name__ == "__main__":
   axs.axis('equal')
   axs.plot()
   plt.show()
-  while True:
-      pass
-  #for i in range(N):
-  #    fig, axs = plt.subplots(figsize=(6, 6), nrows=1, ncols=1)
-  #    axs.plot(*cir)
-  #    axs.plot(x_, y_)
-  #    o = [ ((x + i)%N, (y + i)%N) for x, y in cords ]
-  #    #print( circle_hash(N, o) )
-  #    for a, b in o:
-  #       axs.plot((x_midpoint[a], x_midpoint[b]), (y_midpoint[a], y_midpoint[b]))
-  #    axs.axis('equal')
-  #    axs.plot()
-  #plt.show()
-  #for i in range(N):
-  #    fig, axs = plt.subplots(figsize=(6, 6), nrows=1, ncols=1)
-  #    axs.plot(*cir)
-  #    axs.plot(x_, y_)
-  #    for a, b in [(i, (5+i)%N)]:
-  #        axs.plot((x_midpoint[a], x_midpoint[b]), (y_midpoint[a], y_midpoint[b]))
-  #    axs.axis('equal')
-  #    axs.plot()
-  #plt.axis('equal')
-  #plt.show()
