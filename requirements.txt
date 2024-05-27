@@ -1,0 +1,8 @@
+numpy and pygame.
+
+pip install numpy
+pip install pygame
+
+thats it
+
+should you want to use circuit_sim_render, download matplotlib
