@@ -1,3 +1,6 @@
+from os import environ
+environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+
 import pygame
 import sys
 import numpy as np
@@ -17,10 +20,13 @@ pygame.display.set_caption("Wire Maker")
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+GRAY = (128, 128, 128)
 BLUE = (0, 0, 255)
+LIGHTBLUE = 0, 255, 255
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 GRAY = (200, 200, 200)
+PINK = (255,20,147)
 
 x_offset = 40
 y_offset = 20
@@ -35,12 +41,12 @@ wires = []
 wires_colors = []
 
 CIRCLEMAP = {
-    3: (139, 194, 75),  #green
-    4: (253, 233, 59),  #yellow
-    5: (34, 87, 168),
-    6: (200, 48, 48),
-    7: (58, 58, 58),
-    8: (202, 202, 202),
+    3: (57, 255, 20),  #Neon Green
+    4: (255, 255, 0),  #Neon Yellow
+    5: (0, 191, 255),  #Neon Blue
+    6: (255, 0, 71),   #Neon Red
+    7: (150, 155, 160),#Neon Gray
+    8: (255, 255, 230),#Neon White
 }
 PRESETCOMPS = [
     None,
@@ -95,12 +101,6 @@ def run():
     global wires_colors
     global shapes_colors
 
-    def whole_numbers(vals):
-        for x, y in vals:
-            if x%1 != 0 or y%1 != 0:
-                return False
-        return True 
-
     inv = []
     subset = []
     for i, shape in enumerate(shapes):
@@ -116,7 +116,7 @@ def run():
     val, pow = simulate(o, wires, S)
     for i, x in enumerate(val):
         if x:
-            wires_colors[i] = BLUE
+            wires_colors[i] = LIGHTBLUE
         else:
             wires_colors[i] = RED
     for i, x in enumerate(pow[:len(sinks)]):
@@ -130,7 +130,7 @@ def run():
         if subset[i] or any(pow[counter: counter+c]):
             shapes_colors[i] = CIRCLEMAP[c]
         else:
-            shapes_colors[i] = BLACK
+            shapes_colors[i] = GRAY
         counter += c
              
 t = None
@@ -143,7 +143,7 @@ def is_point_on_line(x, y, x1, y1, x2, y2):
     return min(x1, x2) <= x <= max(x1, x2) and min(y1, y2) <= y <= max(y1, y2)
 
 #, size=CELL_SIZE/50, color = color
-def render_arrowhead(x, y, z, a, size: int = 1, color: tuple = BLACK):
+def render_arrowhead(x, y, z, a, size: int = 1, color: tuple = GRAY):
     if (x+line_thick < 0 and z+line_thick < 0) or (x-line_thick > WIDTH and z-line_thick > WIDTH): return
     if (y < 0 and a < 0) or (y > HEIGHT and a > HEIGHT): return
     # Calculate midpoint
@@ -184,7 +184,7 @@ def wire_draw():
         if wire[0] == wire[2] and wire[1] == wire[3]: return
         if wire in wires: return
         wires.append(wire)
-        wires_colors.append(BLACK)
+        wires_colors.append(BLUE)
         t = None
 
 def wire_passive():
@@ -196,8 +196,8 @@ def wire_passive():
         pos_y = round((pos[1]-y_offset)/CELL_SIZE)*CELL_SIZE + y_offset
         x = x*CELL_SIZE + x_offset
         y = y*CELL_SIZE + y_offset
-        pygame.draw.line(screen, BLACK, (x, y), (pos_x, pos_y), 2)
-        render_arrowhead(x, y, pos_x, pos_y)
+        pygame.draw.line(screen, BLUE, (x, y), (pos_x, pos_y), 2)
+        render_arrowhead(x, y, pos_x, pos_y, color=BLUE)
 
 def wire_delete():
     global wires
@@ -224,7 +224,7 @@ def sources_passive():
         round((pos[0]-x_offset)/CELL_SIZE)*CELL_SIZE + x_offset, 
         round((pos[1]-y_offset)/CELL_SIZE)*CELL_SIZE + y_offset,
     )
-    pygame.draw.circle(screen, BLUE, pos, max(10*(CELL_SIZE/50), 1))
+    pygame.draw.circle(screen, LIGHTBLUE, pos, max(10*(CELL_SIZE/50), 1))
 
 def sources_delete():
     global sources
@@ -243,7 +243,7 @@ def sinks_draw():
     pos = pos_adj(pos)
     if pos in sinks: return
     sinks.append(pos)
-    sinks_colors.append(BLACK)
+    sinks_colors.append(GRAY)
 
 def sinks_passive():
     pos = pygame.mouse.get_pos()
@@ -316,7 +316,7 @@ def shape_wire(shape, points_):
             shapes_connections[shape].add(val)
             shape_t = None
         
-
+passive_render = []
 def shape_wire_passive(shape, points_):
     global shape_t
     if shape_t is not None:
@@ -329,7 +329,8 @@ def shape_wire_passive(shape, points_):
             _, end = find_closest_point(pos, points_[L*2:])
         else:
             _, end = find_closest_point(pos, points_[:L])
-        pygame.draw.line(screen, BLACK, p, end, 2)
+        passive_render.append((GRAY, p, end))
+        pygame.draw.line(screen, GRAY, p, end, 2)
 
 def shape_wire_delete(shape, points_):
     def distance_point_to_line(a, b, x1, y1, x2, y2):
@@ -480,9 +481,9 @@ def ray_casting(x, y, polygon):
     return inside
 
 while True:
-    screen.fill(WHITE)
-    pygame.draw.line(screen, BLACK, (0, HEIGHT), (WIDTH, HEIGHT))
-    pygame.draw.line(screen, BLACK, (WIDTH, 0), (WIDTH, HEIGHT))
+    screen.fill(BLACK)
+    pygame.draw.line(screen, GRAY, (0, HEIGHT), (WIDTH, HEIGHT))
+    pygame.draw.line(screen, GRAY, (WIDTH, 0), (WIDTH, HEIGHT))
     for x in range(x_offset % CELL_SIZE, WIDTH, CELL_SIZE):
         pygame.draw.line(screen, GRAY, (x, 0), (x, HEIGHT))
     for y in range(y_offset % CELL_SIZE, HEIGHT, CELL_SIZE):
@@ -555,7 +556,7 @@ while True:
             wires.pop(i)
             wires_colors.pop(i)
         shapes.append(loop)
-        shapes_colors.append(BLACK)
+        shapes_colors.append(BLUE)
         shapes_connections.append(set())
 
 
@@ -582,7 +583,7 @@ while True:
     for x, y in sources:
         x = x*CELL_SIZE + x_offset
         y = y*CELL_SIZE + y_offset
-        render_circle(screen, BLUE, x, y, dot_r)
+        render_circle(screen, LIGHTBLUE, x, y, dot_r)
     for (x, y), color in zip(sinks, sinks_colors):
         x = x*CELL_SIZE + x_offset
         y = y*CELL_SIZE + y_offset
@@ -615,31 +616,34 @@ while True:
                 cord1 = points[k]
                 cord2 = points[j]
             render_lines.append((cord1, cord2))
-        if intersect_shape != i:
-            render_polygon(screen, WHITE, i, points)
+        #if intersect_shape != i:
+        render_polygon(screen, BLACK, i, points)
         for (x, y), (z, a) in render_lines:
             render_line(screen, color, x, y, z, a, line_thick)
         for (x, y) in render_circles:
             render_circle(screen, color, x, y, dot_r)
+        for color, (x, y), (z, a) in passive_render:
+            render_line(screen, color, x, y, z, a, line_thick)
+            passive_render.clear()
         
-        render_text(CIRCLE_HASH_TO_NAME.get(circle_hash_api(L, shapes_connections[i])), BLACK, avg(shape[:-1]), True)
+        render_text(CIRCLE_HASH_TO_NAME.get(circle_hash_api(L, shapes_connections[i])), GRAY, avg(shape[:-1]), True)
     
-    render_text(f"Current Tool: {option_name[sel]}{' delete' if delete_mode else ''}", BLACK, (0, 0), font_size=40)
+    render_text(f"Current Tool: {option_name[sel]}{' delete' if delete_mode else ''}", GRAY, (0, 0), font_size=40)
 
     if help:
-        render_text(f"Actions", BLACK, (0, 50), font_size=40)
+        render_text(f"Actions", GRAY, (0, 50), font_size=40)
         for i, element in enumerate(option_name):
-            render_text(f"{i+1} = {element}", BLACK, (0, 50 + (i+1) * 40), font_size=40)
+            render_text(f"{i+1} = {element}", GRAY, (0, 50 + (i+1) * 40), font_size=40)
         i+=2
-        render_text(f"d (hold) = delete mode for tool", BLACK, (0, 50 + i * 40), font_size=40)
+        render_text(f"d (hold) = delete mode for tool", GRAY, (0, 50 + i * 40), font_size=40)
         i+=1
-        render_text(f"r = run", BLACK, (0, 50 + i * 40), font_size=40)
+        render_text(f"r = run", GRAY, (0, 50 + i * 40), font_size=40)
         i+=1
-        render_text(f"t = toggle help", BLACK, (0, 50 + i * 40), font_size=40)
+        render_text(f"t = toggle help", GRAY, (0, 50 + i * 40), font_size=40)
         i+=1
-        render_text(f"wheel = zoom in/out", BLACK, (0, 50 + i * 40), font_size=40)
+        render_text(f"wheel = zoom in/out", GRAY, (0, 50 + i * 40), font_size=40)
         i+=1
-        render_text(f"left click = move screen", BLACK, (0, 50 + i * 40), font_size=40)
+        render_text(f"left click = move screen", GRAY, (0, 50 + i * 40), font_size=40)
         
 
     pygame.display.flip()

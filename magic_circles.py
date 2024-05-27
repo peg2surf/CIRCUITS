@@ -43,15 +43,15 @@ def circle_hash(parent: int, cords: list):
 
 CIRCLE_HASH_TO_NAME = {
    "3"      : "Enhance",
-   "-3"      : "Anti-Enhance",
+   "-3"     : "Anti-Enhance",
    "4"      : "Lock",
-   "-4"      : "Unlock",
+   "-4"     : "Unlock",
    "411"    : "Expand",
    "-411"   : "Contract",
    "412"    : "Cut",
    "-412"   : "Repair",
    "421"    : "Twist",
-   "-421"    : "Counter Twist",
+   "-421"   : "Counter Twist",
    "5"      : "Stasis",
    "-5"     : "Anti-Stasis",
    "511"    : "Translation Out",
