@@ -7,6 +7,7 @@ import numpy as np
 import itertools
 import math
 from statistics import mean
+from collections import deque
 
 from circuit_sim import simulate
 from magic_circles import circle_hash, CIRCLE_HASH_TO_NAME
@@ -31,16 +32,28 @@ PINK = (255,20,147)
 x_offset = 40
 y_offset = 20
 
+# SOURCES LISTS
 sources = []
+
+# SINKS LISTS
 sinks = []
 sinks_colors = []
+
+# SHAPE LISTS
 shapes = []
 shapes_colors = []
 shapes_connections = []
+
+# WIRES LISTS
 wires = []
 wires_colors = []
+
+#CIRCLES LISTS
 circles = []
 circles_color = []
+
+
+rects = deque()
 
 CIRCLEMAP = {
     3: (57, 255, 20),  #Neon Green
@@ -64,15 +77,12 @@ PRESETCOMPS = [
 
 def find_loops(coordinates):
     graph = {}
-
-    # Build the graph
     for x1, y1, x2, y2 in coordinates:
         if (x1, y1) not in graph:
             graph[(x1, y1)] = []
         if (x2, y2) not in graph:
             graph[(x2, y2)] = []
         graph[(x1, y1)].append((x2, y2))
-
     def dfs(node, visited, path):
         if node in visited:
             return path
@@ -365,7 +375,6 @@ def shape_wire_delete(shape, points_):
         shapes.pop(shape)
         shapes_colors.pop(shape)
         shapes_connections.pop(shape)
-        rects.remove(shape)
     else:
         _, p = min(((distance_point_to_line(*pos, *points_[i], *points_[j]), (i,j)) for i, j in shapes_connections[shape]), key=lambda x: x[0])
         shapes_connections[shape].remove(p)
@@ -512,14 +521,12 @@ def render_circle(screen, color, x, y, dot_r, width=0):
 
 def render_polygon(screen, color, shape_index, points):
     if all(x < 0 or x > WIDTH or y < 0 or y > HEIGHT for x, y in points): return
-    rects.add(shape_index)
+    rects.appendleft((1, points))
     pygame.draw.polygon(screen, color, points)
 
 
 help = False
 delete_mode = False
-
-rects = set()
 
 def ray_casting(x, y, polygon):
     num_vertices = len(polygon)
@@ -538,22 +545,25 @@ def ray_casting(x, y, polygon):
     return inside
 
 while True:
+    line_thick = max(int(2*(CELL_SIZE/50)), 1)
+    dot_r = max(10*(CELL_SIZE/50), 1)
+
     screen.fill(BLACK)
-    pygame.draw.line(screen, GRAY, (0, HEIGHT), (WIDTH, HEIGHT))
-    pygame.draw.line(screen, GRAY, (WIDTH, 0), (WIDTH, HEIGHT))
+    # pygame.draw.line(screen, GRAY, (0, HEIGHT), (WIDTH, HEIGHT), line_thick)
+    # pygame.draw.line(screen, GRAY, (WIDTH, 0), (WIDTH, HEIGHT), line_thick)
     for x in range(x_offset % CELL_SIZE, WIDTH, CELL_SIZE):
-        pygame.draw.line(screen, GRAY, (x, 0), (x, HEIGHT))
+        pygame.draw.line(screen, GRAY, (x, 0), (x, HEIGHT), int(line_thick*0.5))
     for y in range(y_offset % CELL_SIZE, HEIGHT, CELL_SIZE):
-        pygame.draw.line(screen, GRAY, (0, y), (WIDTH, y))
+        pygame.draw.line(screen, GRAY, (0, y), (WIDTH, y), int(line_thick*0.5))
 
     intersect_shape = -1
     points_ = None
-    for i in rects:
-        _t = [(x*CELL_SIZE + x_offset, y*CELL_SIZE + y_offset) for x, y in shapes[i]]
+    for i, _t in rects:
         if ray_casting(*pygame.mouse.get_pos(), _t):
             intersect_shape = i
             m_ = list(midpoints(_t))
             points_ = _t[:-1] + m_ + list(midpoints(m_ + m_[0:1]))
+    rects.clear()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -616,10 +626,6 @@ while True:
         shapes_colors.append(BLUE)
         shapes_connections.append(set())
 
-
-    line_thick = max(int(2*(CELL_SIZE/50)), 1)
-    dot_r = max(10*(CELL_SIZE/50), 1)
-
     def draw_circle_alpha(surface, color, center, radius):
         if x+radius < 0 or x-radius > WIDTH or y+radius < 0 or y-radius > HEIGHT: return
         target_rect = pygame.Rect(center, (0, 0)).inflate((radius * 2, radius * 2))
@@ -661,8 +667,6 @@ while True:
         y = y*CELL_SIZE + y_offset
         render_circle(screen, color, x, y, dot_r, 2)
 
-    
-
     for i, (shape, color, connections) in enumerate(zip(shapes, shapes_colors, shapes_connections)):
         L = len(shape) - 1
         render_lines = []
@@ -693,7 +697,7 @@ while True:
         #if intersect_shape != i:
         def draw_polygon_alpha(surface, color, points, index=-1):
             if index != -1:
-                rects.add(index)
+                rects.appendleft((i, points))
             if all(x < 0 or x > WIDTH or y < 0 or y > HEIGHT for x, y in points): return
             lx, ly = zip(*points)
             min_x, min_y, max_x, max_y = min(lx), min(ly), max(lx), max(ly)
