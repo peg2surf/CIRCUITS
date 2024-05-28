@@ -372,7 +372,7 @@ def shape_wire_delete(shape, points_):
 
 circle_t = None
 
-def circle_draw():
+def circle_draw(*_):
     global t
     if t is None:
         pos = event.pos
@@ -388,7 +388,7 @@ def circle_draw():
         t = None
     
 
-def circle_passive():
+def circle_passive(*_):
     global t
     if t is not None:
         x, y = t
@@ -400,7 +400,7 @@ def circle_passive():
         radius = max(abs(pos_x-x), abs(pos_y-y))
         pygame.draw.circle(screen, RED, (x, y), radius, 1)
 
-def circle_delete():
+def circle_delete(*_):
     pos = event.pos
     pos = pos_adj((pos[0] - x_offset, pos[1] - y_offset))
     _, i = min(((o, i) for i, (radius, (x, y)) in enumerate(circles) if radius >= (o:=max(abs(pos[0]-x), abs(pos[1]-y)))), key=lambda x: x[0], default=(math.inf, -1))
@@ -419,7 +419,7 @@ options = {
     "Wire"  : [wire_draw, wire_passive, wire_delete, shape_wire, shape_wire_passive, shape_wire_delete],
     "Source": [sources_draw, sources_passive, sources_delete, no_action, no_action, no_action], 
     "Sink"  : [sinks_draw, sinks_passive, sinks_delete, no_action, no_action, no_action],
-    "Circle": [circle_draw, circle_passive, circle_delete, no_action, no_action, no_action],
+    "Circle": [circle_draw, circle_passive, circle_delete, circle_draw, circle_passive, circle_delete],
 }
 
 option_name = tuple(options.keys())
@@ -620,6 +620,19 @@ while True:
     line_thick = max(int(2*(CELL_SIZE/50)), 1)
     dot_r = max(10*(CELL_SIZE/50), 1)
 
+    def draw_circle_alpha(surface, color, center, radius):
+        if x+radius < 0 or x-radius > WIDTH or y+radius < 0 or y-radius > HEIGHT: return
+        target_rect = pygame.Rect(center, (0, 0)).inflate((radius * 2, radius * 2))
+        shape_surf = pygame.Surface(target_rect.size, pygame.SRCALPHA)
+        pygame.draw.circle(shape_surf, color, (radius, radius), radius)
+        surface.blit(shape_surf, target_rect)
+
+    for (radius, (x, y)), color in zip(circles, circles_color):
+        x = x*CELL_SIZE + x_offset
+        y = y*CELL_SIZE + y_offset
+        render_circle(screen, color, x, y, radius*CELL_SIZE, 2)
+        draw_circle_alpha(screen, (*color, 100), (x, y), radius*CELL_SIZE)
+
     opt = option_name[sel]
     if (not delete_mode and intersect_shape == -1) or (opt == "Wire" and t is not None):
         options[opt][1]()
@@ -629,6 +642,8 @@ while True:
     def _t(iter):
         (x1, y1), (x2, y2) = iter
         return ((x1+x2)/2, (y1+y2)/2)
+    
+   
     
     for (x, y, z, a), color in zip(wires, wires_colors):
         x = x*CELL_SIZE + x_offset
@@ -646,18 +661,7 @@ while True:
         y = y*CELL_SIZE + y_offset
         render_circle(screen, color, x, y, dot_r, 2)
 
-    def draw_circle_alpha(surface, color, center, radius):
-        if x+radius < 0 or x-radius > WIDTH or y+radius < 0 or y-radius > HEIGHT: return
-        target_rect = pygame.Rect(center, (0, 0)).inflate((radius * 2, radius * 2))
-        shape_surf = pygame.Surface(target_rect.size, pygame.SRCALPHA)
-        pygame.draw.circle(shape_surf, color, (radius, radius), radius)
-        surface.blit(shape_surf, target_rect)
-
-    for (radius, (x, y)), color in zip(circles, circles_color):
-        x = x*CELL_SIZE + x_offset
-        y = y*CELL_SIZE + y_offset
-        render_circle(screen, color, x, y, radius*CELL_SIZE, 2)
-        draw_circle_alpha(screen, (*color, 100), (x, y), radius*CELL_SIZE)
+    
 
     for i, (shape, color, connections) in enumerate(zip(shapes, shapes_colors, shapes_connections)):
         L = len(shape) - 1
