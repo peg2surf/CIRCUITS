@@ -15,7 +15,7 @@ pygame.init()
 
 WIDTH, HEIGHT = 800, 600
 CELL_SIZE = 50
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.SRCALPHA)
 pygame.display.set_caption("Wire Maker")
 
 WHITE = (255, 255, 255)
@@ -39,6 +39,8 @@ shapes_colors = []
 shapes_connections = []
 wires = []
 wires_colors = []
+circles = []
+circles_color = []
 
 CIRCLEMAP = {
     3: (57, 255, 20),  #Neon Green
@@ -92,6 +94,12 @@ def find_loops(coordinates):
                 loops.append(loop)
     return loops
 
+def average_rgb(rgb1, rgb2):
+    r_avg = (rgb1[0] + rgb2[0]) // 2
+    g_avg = (rgb1[1] + rgb2[1]) // 2
+    b_avg = (rgb1[2] + rgb2[2]) // 2
+    return (r_avg, g_avg, b_avg)
+
 def run():
     global sources
     global shape
@@ -125,10 +133,20 @@ def run():
         else:
             sinks_colors[i] = RED
     counter = len(sinks)
+    cir = [True] * len(circles)
     for i, shape in enumerate(shapes):
         c = len(shape) - 1
         if subset[i] or any(pow[counter: counter+c]):
             shapes_colors[i] = CIRCLEMAP[c]
+            for i, (radius, (x, y)) in enumerate(circles):
+                if all(
+                    radius >= max(abs(x - z), abs(y - a)) for z, a in shape
+                ):
+                    if cir[i]:
+                        circles_color[i] = CIRCLEMAP[c]
+                        cir[i] = False
+                    else:
+                        circles_color[i] = average_rgb(circles_color[i], CIRCLEMAP[c])
         else:
             shapes_colors[i] = GRAY
         counter += c
@@ -351,6 +369,45 @@ def shape_wire_delete(shape, points_):
     else:
         _, p = min(((distance_point_to_line(*pos, *points_[i], *points_[j]), (i,j)) for i, j in shapes_connections[shape]), key=lambda x: x[0])
         shapes_connections[shape].remove(p)
+
+circle_t = None
+
+def circle_draw():
+    global t
+    if t is None:
+        pos = event.pos
+        pos = (pos[0] - x_offset, pos[1] - y_offset)
+        t = pos_adj((pos[0], pos[1]))
+    else:
+        pos = event.pos
+        x, y = t
+        pos = pos_adj((pos[0] - x_offset, pos[1] - y_offset))
+        radius = max(abs(pos[0]-x), abs(pos[1]-y))
+        circles.append((radius, (x, y)))
+        circles_color.append(RED)
+        t = None
+    
+
+def circle_passive():
+    global t
+    if t is not None:
+        x, y = t
+        pos = pygame.mouse.get_pos()
+        pos_x = round((pos[0]-x_offset)/CELL_SIZE)*CELL_SIZE + x_offset
+        pos_y = round((pos[1]-y_offset)/CELL_SIZE)*CELL_SIZE + y_offset
+        x = x*CELL_SIZE + x_offset
+        y = y*CELL_SIZE + y_offset
+        radius = max(abs(pos_x-x), abs(pos_y-y))
+        pygame.draw.circle(screen, RED, (x, y), radius, 1)
+
+def circle_delete():
+    pos = event.pos
+    pos = pos_adj((pos[0] - x_offset, pos[1] - y_offset))
+    _, i = min(((o, i) for i, (radius, (x, y)) in enumerate(circles) if radius >= (o:=max(abs(pos[0]-x), abs(pos[1]-y)))), key=lambda x: x[0], default=(math.inf, -1))
+    if i == -1: return
+    circles.pop(i)
+    circles_color.pop(i)
+    
         
 
 def no_action(*_):
@@ -362,7 +419,7 @@ options = {
     "Wire"  : [wire_draw, wire_passive, wire_delete, shape_wire, shape_wire_passive, shape_wire_delete],
     "Source": [sources_draw, sources_passive, sources_delete, no_action, no_action, no_action], 
     "Sink"  : [sinks_draw, sinks_passive, sinks_delete, no_action, no_action, no_action],
-    "Circle": [no_action, no_action, no_action, no_action, no_action, no_action],
+    "Circle": [circle_draw, circle_passive, circle_delete, no_action, no_action, no_action],
 }
 
 option_name = tuple(options.keys())
@@ -449,9 +506,9 @@ def render_line(screen, color, x, y, z, a, line_thick):
     if (y < 0 and a < 0) or (y > HEIGHT and a > HEIGHT): return
     pygame.draw.line(screen, color, (x, y), (z, a), line_thick)
 
-def render_circle(screen, color, x, y, dot_r):
+def render_circle(screen, color, x, y, dot_r, width=0):
     if x+dot_r < 0 or x-dot_r > WIDTH or y+dot_r < 0 or y-dot_r > HEIGHT: return
-    pygame.draw.circle(screen, color, (x, y), dot_r)
+    pygame.draw.circle(screen, color, (x, y), dot_r, width)
 
 def render_polygon(screen, color, shape_index, points):
     if all(x < 0 or x > WIDTH or y < 0 or y > HEIGHT for x, y in points): return
@@ -587,7 +644,20 @@ while True:
     for (x, y), color in zip(sinks, sinks_colors):
         x = x*CELL_SIZE + x_offset
         y = y*CELL_SIZE + y_offset
-        render_circle(screen, color, x, y, dot_r)
+        render_circle(screen, color, x, y, dot_r, 2)
+
+    def draw_circle_alpha(surface, color, center, radius):
+        if x+radius < 0 or x-radius > WIDTH or y+radius < 0 or y-radius > HEIGHT: return
+        target_rect = pygame.Rect(center, (0, 0)).inflate((radius * 2, radius * 2))
+        shape_surf = pygame.Surface(target_rect.size, pygame.SRCALPHA)
+        pygame.draw.circle(shape_surf, color, (radius, radius), radius)
+        surface.blit(shape_surf, target_rect)
+
+    for (radius, (x, y)), color in zip(circles, circles_color):
+        x = x*CELL_SIZE + x_offset
+        y = y*CELL_SIZE + y_offset
+        render_circle(screen, color, x, y, radius*CELL_SIZE, 2)
+        draw_circle_alpha(screen, (*color, 100), (x, y), radius*CELL_SIZE)
 
     for i, (shape, color, connections) in enumerate(zip(shapes, shapes_colors, shapes_connections)):
         L = len(shape) - 1
@@ -617,7 +687,17 @@ while True:
                 cord2 = points[j]
             render_lines.append((cord1, cord2))
         #if intersect_shape != i:
-        render_polygon(screen, BLACK, i, points)
+        def draw_polygon_alpha(surface, color, points, index=-1):
+            if index != -1:
+                rects.add(index)
+            if all(x < 0 or x > WIDTH or y < 0 or y > HEIGHT for x, y in points): return
+            lx, ly = zip(*points)
+            min_x, min_y, max_x, max_y = min(lx), min(ly), max(lx), max(ly)
+            target_rect = pygame.Rect(min_x, min_y, max_x - min_x, max_y - min_y)
+            shape_surf = pygame.Surface(target_rect.size, pygame.SRCALPHA)
+            pygame.draw.polygon(shape_surf, color, [(x - min_x, y - min_y) for x, y in points])
+            surface.blit(shape_surf, target_rect)
+        draw_polygon_alpha(screen, (*color, 128), points, i)
         for (x, y), (z, a) in render_lines:
             render_line(screen, color, x, y, z, a, line_thick)
         for (x, y) in render_circles:
